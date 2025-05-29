@@ -17,6 +17,7 @@ import {
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import SentenceProbability from "./components/SentenceProbability";
+import Autocomplete from "./components/Autocomplete";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
@@ -64,6 +65,11 @@ function App() {
         probLoading={probLoading}
         sentenceProb={sentenceProb}
       />
+      {/* Autocomplete Component */}
+      <div>
+        <h2 style={{ textAlign: "center" }}>Laplace Autocomplete</h2>
+         <Autocomplete />;
+      </div>
     </div>
   );
 }
