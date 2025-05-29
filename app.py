@@ -147,5 +147,97 @@ def sentence_probability():
         }
     })
 
+# AUTCOMPLETE STUFF
+corpus = [
+    "the cat sat on the mat",
+    "the dog sat on the rug",
+    "the cat chased the mouse",
+    "the dog barked loudly",
+    "the mouse ran away",
+    "the mat was soft",
+    "the rug was dirty",
+    "the cat was sleepy",
+    "the dog was noisy",
+    "the mouse was quick"
+]
+
+class NoSmoothingTrigramModel:
+    def __init__(self, corpus):
+        self.trigrams = defaultdict(int)
+        self.bigrams = defaultdict(int)
+        self.train(corpus)
+
+    def train(self, corpus):
+        for sentence in corpus:
+            tokens = sentence.lower().split()
+            for i in range(2, len(tokens)):
+                self.trigrams[(tokens[i-2], tokens[i-1], tokens[i])] += 1
+                self.bigrams[(tokens[i-2], tokens[i-1])] += 1
+
+    def trigram_prob(self, w1, w2, w3):
+        if self.bigrams[(w1, w2)] == 0:
+            return 0.0
+        return self.trigrams[(w1, w2, w3)] / self.bigrams[(w1, w2)]
+
+    def predict_next(self, w1, w2, candidates):
+        return sorted(
+            [(w, self.trigram_prob(w1, w2, w)) for w in candidates],
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+class LaplaceSmoothingTrigramModel:
+    def __init__(self, corpus):
+        self.trigrams = defaultdict(int)
+        self.bigrams = defaultdict(int)
+        self.vocab = set()
+        self.vocab_size = 0
+        self.train(corpus)
+
+    def train(self, corpus):
+        for sentence in corpus:
+            tokens = sentence.lower().split()
+            self.vocab.update(tokens)
+            for i in range(2, len(tokens)):
+                self.trigrams[(tokens[i-2], tokens[i-1], tokens[i])] += 1
+                self.bigrams[(tokens[i-2], tokens[i-1])] += 1
+        self.vocab_size = len(self.vocab)
+
+    def trigram_prob(self, w1, w2, w3):
+        return (self.trigrams[(w1, w2, w3)] + 1) / (self.bigrams[(w1, w2)] + self.vocab_size)
+
+    def predict_next(self, w1, w2, candidates):
+        return sorted(
+            [(w, self.trigram_prob(w1, w2, w)) for w in candidates],
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+# === Initialize models ===
+no_smooth = NoSmoothingTrigramModel(corpus)
+laplace = LaplaceSmoothingTrigramModel(corpus)
+vocab = list(laplace.vocab)
+
+@app.route("/autocomplete", methods=["POST"])
+def autocomplete():
+    data = request.get_json()
+    text = data.get("text", "").strip().lower()
+    tokens = text.split()
+
+    if len(tokens) < 2:
+        return jsonify({"no_smoothing": [], "laplace_smoothing": []})
+
+    w1, w2 = tokens[-2], tokens[-1]
+
+    preds_no = no_smooth.predict_next(w1, w2, vocab)
+    preds_lap = laplace.predict_next(w1, w2, vocab)
+
+    return jsonify({
+        "no_smoothing": [{"word": w, "prob": round(p, 4)} for w, p in preds_no if p > 0],
+        "laplace_smoothing": [{"word": w, "prob": round(p, 4)} for w, p in preds_lap]
+    })
+
+
+
 if __name__ == "__main__":
     app.run(debug=True)
