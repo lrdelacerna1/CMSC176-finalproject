@@ -67,7 +67,6 @@ function App() {
       />
       {/* Autocomplete Component */}
       <div>
-        <h2 style={{ textAlign: "center" }}>Laplace Autocomplete</h2>
          <Autocomplete />;
       </div>
     </div>
